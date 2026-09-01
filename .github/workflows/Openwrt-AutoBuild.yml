@@ -224,6 +224,9 @@ jobs:
       run: |
         cd openwrt
         make defconfig
+        grep -qx 'CONFIG_TARGET_amlogic=y' .config
+        grep -qx 'CONFIG_TARGET_amlogic_meson8b=y' .config
+        grep -qx 'CONFIG_TARGET_ARCH_PACKAGES="arm_cortex-a5_vfpv4"' .config
         if [[ ! "${{matrix.target}}" =~ (amlogic_*|armsr_armv8|bcm27xx_*|rockchip_armv8|sunxi_*|x86_*) ]]; then
         sed -n '/# Wireless Drivers/,/# end of Wireless Drivers/p' .config | sed -e 's/=m/=n/' >>.config
         #sed -i "s/\(kmod-qca.*\)=m/\1=n/" .config

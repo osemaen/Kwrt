@@ -2,6 +2,10 @@
 #=================================================
 shopt -s extglob
 
+if [ "$TARGET" = "amlogic_meson8b" ]; then
+	git_clone_path master https://github.com/coolsnowwolf/lede target/linux/amlogic
+fi
+
 sed -i '$a src-git kiddin9 https://github.com/mgz0227/kwrt-packages.git;main' feeds.conf.default
 sed -i '$a src-git openclash https://github.com/vernesong/OpenClash.git;master' feeds.conf.default
 sed -i '$a src-git lucky https://github.com/gdy666/luci-app-lucky.git;main' feeds.conf.default

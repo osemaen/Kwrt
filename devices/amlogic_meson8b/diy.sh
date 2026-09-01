@@ -10,9 +10,6 @@ SHELL_FOLDER=$(dirname $(readlink -f "$0"))
 
 #git_clone_path c640f7b93736621b4d56627e4f6ab824093f9c3d https://github.com/openwrt/openwrt package/kernel/mac80211
 
-
-git_clone_path master https://github.com/coolsnowwolf/lede target/linux/amlogic
-
 git clone --depth 1 https://github.com/crackerfly/SingBox-Formula.git /tmp/SingBox-Formula
 cp -R /tmp/SingBox-Formula/openwrt-feed/liquid-formula package/
 cp -R /tmp/SingBox-Formula/openwrt-feed/luci-app-liquid-formula package/
@@ -26,3 +23,6 @@ sed -i "s/wpad-openssl/wpad-basic-mbedtls/" target/linux/amlogic/image/Makefile
 sed -i "s/neon-vfpv4/vfpv4/" target/linux/amlogic/meson8b/target.mk
 
 rm -rf package/feeds/routing/batman-adv
+
+# 目标树和 Liquid Formula 均在 feeds 元数据生成后加入，强制 make 重新扫描。
+rm -f tmp/.config-package.in tmp/.config-target.in tmp/.packageinfo tmp/.targetinfo
