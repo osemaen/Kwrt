@@ -2,7 +2,10 @@
 #=================================================
 shopt -s extglob
 
-sed -i '$a src-git kiddin9 https://github.com/kiddin9/kwrt-packages.git;main' feeds.conf.default
+sed -i '$a src-git kiddin9 https://github.com/mgz0227/kwrt-packages.git;main' feeds.conf.default
+sed -i '$a src-git openclash https://github.com/vernesong/OpenClash.git;master' feeds.conf.default
+sed -i '$a src-git lucky https://github.com/gdy666/luci-app-lucky.git;main' feeds.conf.default
+sed -i '$a src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main' feeds.conf.default
 sed -i "/telephony/d" feeds.conf.default
 
 sed -i "s?targets/%S/packages?targets/%S/\$(LINUX_VERSION)?" include/feeds.mk
@@ -14,6 +17,10 @@ sed -i "s?git.openwrt.org/\(project\|feed\)?github.com/openwrt?g" feeds.conf.def
 ./scripts/feeds update -a
 ./scripts/feeds install -a -p kiddin9 -f
 ./scripts/feeds install -a
+./scripts/feeds install -a -p packages -f
+./scripts/feeds install -a -p openclash -f
+./scripts/feeds install -a -p lucky -f
+./scripts/feeds install -a -p momo -f
 
 sed --follow-symlinks -i "s#%C\"#%C by Kiddin'\"#" package/base-files/files/etc/os-release
 sed -i -e '$a /etc/bench.log' \
@@ -49,14 +56,6 @@ sed -i "s/procd-ujail//" include/target.mk
 
 sed -i "s/^.*vermagic$/\techo '1' > \$(LINUX_DIR)\/.vermagic/" include/kernel-defaults.mk
 
-status=$(curl -H "Authorization: token $REPO_TOKEN" -s "https://api.github.com/repos/kiddin9/kwrt-packages/actions/runs" | jq -r '.workflow_runs[0].status')
-echo "$status"
-while [[ "$status" == "in_progress" || "$status" == "queued" ]];do
-	echo "wait 5s"
-	sleep 5
-	status=$(curl -H "Authorization: token $REPO_TOKEN" -s "https://api.github.com/repos/kiddin9/kwrt-packages/actions/runs" | jq -r '.workflow_runs[0].status')
-done
-
 mv -f feeds/kiddin9/r81* tmp/
 
 wget -N https://raw.githubusercontent.com/openwrt/packages/master/lang/golang/golang/Makefile -P feeds/packages/lang/golang/golang/
@@ -91,4 +90,3 @@ sed -i "s/OpenWrt/Kwrt/g" package/base-files/files/bin/config_generate package/b
 sed -i -e "s/set \${s}.country='\${country || ''}'/set \${s}.country='\${country || \"CN\"}'/g" -e "s/set \${s}.disabled=.*/set \${s}.disabled='0'/" package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 
 rm -rf package/feeds/packages/jool
-

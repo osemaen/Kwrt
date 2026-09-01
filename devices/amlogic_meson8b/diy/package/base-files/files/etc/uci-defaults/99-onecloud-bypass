@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# 单网口旁路由：仅由指定终端把网关和 DNS 指向本机。
+uci -q batch <<'EOF'
+set network.lan.proto='static'
+set network.lan.ipaddr='192.168.1.2'
+set network.lan.netmask='255.255.255.0'
+set network.lan.gateway='192.168.1.1'
+delete network.lan.dns
+add_list network.lan.dns='192.168.1.1'
+set network.lan.delegate='0'
+delete network.globals.ula_prefix
+
+set dhcp.lan.ignore='1'
+set dhcp.lan.ra='disabled'
+set dhcp.lan.dhcpv6='disabled'
+set dhcp.lan.ndp='disabled'
+set dhcp.odhcpd.disabled='1'
+
+set firewall.@zone[0].masq='1'
+set firewall.@zone[0].mtu_fix='1'
+EOF
+
+uci -q commit network
+uci -q commit dhcp
+uci -q commit firewall
+
+# 仅供首次登录；用户确认登录后立即修改。
+printf 'root\nroot\n' | passwd root >/dev/null 2>&1 || true
+
+# 代理、DDNS 与 Docker 在完成各自配置前不自启动。
+for service in dockerd openclash momo liquid_formula lucky; do
+	if [ -x "/etc/init.d/$service" ]; then
+		"/etc/init.d/$service" disable
+		"/etc/init.d/$service" stop >/dev/null 2>&1 || true
+	fi
+done
+
+exit 0

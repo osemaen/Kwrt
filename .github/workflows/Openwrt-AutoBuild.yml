@@ -8,8 +8,9 @@
 
 name: Build OpenWrt
 
-on: 
+on:
   repository_dispatch:
+  workflow_dispatch:
 
 env:
   REPO_TOKEN: ${{ secrets.TOKEN_KIDDIN9 }}
@@ -31,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: ["${{ github.event.client_payload.target }}"]
+        target: ["amlogic_meson8b"]
         
     steps:
     - name: Checkout
