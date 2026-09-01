@@ -4,6 +4,7 @@ shopt -s extglob
 
 if [ "$TARGET" = "amlogic_meson8b" ]; then
 	git_clone_path master https://github.com/coolsnowwolf/lede target/linux/amlogic
+	sed -i '/KERNEL_TESTING_PATCHVER:=6.1/d' target/linux/amlogic/Makefile
 fi
 
 sed -i '$a src-git kiddin9 https://github.com/mgz0227/kwrt-packages.git;main' feeds.conf.default
