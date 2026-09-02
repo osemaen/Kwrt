@@ -22,26 +22,39 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
         run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name 09.01_amlogic_meson8b --dir downloaded
 
-      - name: Compress OneCloud eMMC image
+      - name: Install ImageBuilder dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zstd
+
+      - name: Rebuild and compress OneCloud eMMC image
         run: |
           set -euo pipefail
-          find downloaded -type f -printf '%s %p\n' | sort -nr | head -100 || true
-          image_path="$(find downloaded -type f -name '*emmc_burn.img*' -print -quit)"
+          imagebuilder_archive="$(find downloaded -type f -name '*imagebuilder*.tar.zst' -print -quit)"
+          test -n "$imagebuilder_archive"
+          mkdir -p imagebuilder
+          tar --zstd -xf "$imagebuilder_archive" -C imagebuilder --strip-components=1
+          find downloaded -type f -name '*.ipk' -exec cp -f {} imagebuilder/packages/ \;
+          cd imagebuilder
+          make info
+          extra_packages="luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker kmod-usb-storage usbutils"
+          make image PROFILE=thunder-onecloud PACKAGES="$extra_packages" DISABLED_SERVICES="dockerd openclash momo liquid_formula lucky"
+          image_path="$(find bin/targets -type f -name '*emmc_burn.img*' -print -quit)"
           test -n "$image_path"
-          mkdir -p firmware
+          mkdir -p ../firmware
           output_name="onecloud-openwrt-24.10-emmc_burn.img"
           if [[ "$image_path" == *.gz ]]; then
             gzip -t "$image_path"
             original_sha256="$(gzip -dc "$image_path" | sha256sum | cut -d ' ' -f 1)"
-            cp "$image_path" "firmware/${output_name}.gz"
+            cp "$image_path" "../firmware/${output_name}.gz"
           else
             original_sha256="$(sha256sum "$image_path" | cut -d ' ' -f 1)"
-            gzip -9 -c "$image_path" > "firmware/${output_name}.gz"
+            gzip -9 -c "$image_path" > "../firmware/${output_name}.gz"
           fi
-          printf '%s  %s\n' "$original_sha256" "$output_name" > firmware/SHA256SUMS
-          compressed_sha256="$(sha256sum "firmware/${output_name}.gz" | cut -d ' ' -f 1)"
-          printf '%s  %s.gz\n' "$compressed_sha256" "$output_name" >> firmware/SHA256SUMS
-          ls -lh firmware
+          printf '%s  %s\n' "$original_sha256" "$output_name" > ../firmware/SHA256SUMS
+          compressed_sha256="$(sha256sum "../firmware/${output_name}.gz" | cut -d ' ' -f 1)"
+          printf '%s  %s.gz\n' "$compressed_sha256" "$output_name" >> ../firmware/SHA256SUMS
+          ls -lh ../firmware
 
       - name: Upload compact firmware artifact
         uses: actions/upload-artifact@main
