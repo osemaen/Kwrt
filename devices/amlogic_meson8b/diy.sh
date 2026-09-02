@@ -20,6 +20,9 @@ chmod +x target/linux/amlogic/image/gen_aml_emmc_img.sh
 
 sed -i "s/wpad-openssl/wpad-basic-mbedtls/" target/linux/amlogic/image/Makefile
 
+# Kwrt 已提供通用 autocore；Amlogic 目标里的 LEDE 变体未随目标树导入。
+sed -i "s/autocore-arm/autocore/g" target/linux/amlogic/Makefile
+
 sed -i "s/neon-vfpv4/vfpv4/" target/linux/amlogic/meson8b/target.mk
 
 rm -rf package/feeds/routing/batman-adv

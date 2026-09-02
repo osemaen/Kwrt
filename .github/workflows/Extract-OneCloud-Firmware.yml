@@ -16,6 +16,9 @@ jobs:
   extract:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout firmware customization
+        uses: actions/checkout@main
+
       - name: Download successful build artifact
         env:
           GH_TOKEN: ${{ github.token }}
@@ -25,7 +28,7 @@ jobs:
       - name: Install ImageBuilder dependency
         run: |
           sudo apt-get update
-          sudo apt-get install -y zstd
+          sudo apt-get install -y android-sdk-libsparse-utils zstd
 
       - name: Rebuild and compress OneCloud eMMC image
         run: |
@@ -35,12 +38,39 @@ jobs:
           mkdir -p imagebuilder
           tar --zstd -xf "$imagebuilder_archive" -C imagebuilder --strip-components=1
           find downloaded -type f -name '*.ipk' -exec cp -f {} imagebuilder/packages/ \;
+          cp -f devices/amlogic_meson8b/gen_aml_emmc_img.sh imagebuilder/target/linux/amlogic/image/gen_aml_emmc_img.sh
+          chmod +x imagebuilder/target/linux/amlogic/image/gen_aml_emmc_img.sh
           cd imagebuilder
           make info
           extra_packages="luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker kmod-usb-storage usbutils"
-          make image PROFILE=thunder-onecloud PACKAGES="$extra_packages" DISABLED_SERVICES="dockerd openclash momo liquid_formula lucky"
+          removed_packages="-autocore-arm -odhcp6c -odhcpd-ipv6only"
+          disabled_services="docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky"
+          make image PROFILE=thunder-onecloud PACKAGES="$extra_packages $removed_packages" DISABLED_SERVICES="$disabled_services"
+
+          root_dir="$(find build_dir -type d -name root-amlogic -print -quit)"
+          test -n "$root_dir"
+          for package in luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker; do
+            grep -q "^Package: ${package}$" "$root_dir/usr/lib/opkg/status"
+          done
+          test -s "$root_dir/usr/share/liquid-formula-dpi/service-common.sh"
+          for service in docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky; do
+            test -z "$(find "$root_dir/etc/rc.d" -type l -name "S??${service}" -print -quit)"
+          done
+
           image_path="$(find bin/targets -type f -name '*emmc_burn.img*' -print -quit)"
           test -n "$image_path"
+          test "$(stat -c '%s' "$image_path")" -gt 10485760
+
+          amlimg="$(find target build_dir -type f -name AmlImg -perm -111 -print -quit)"
+          test -n "$amlimg"
+          validation_dir="${RUNNER_TEMP}/onecloud-image"
+          rm -rf "$validation_dir"
+          "$amlimg" unpack "$image_path" "$validation_dir"
+          test -s "$validation_dir/boot.simg"
+          test -s "$validation_dir/rootfs.simg"
+          test "$(stat -c '%s' "$validation_dir/boot.simg")" -gt 1048576
+          test "$(stat -c '%s' "$validation_dir/rootfs.simg")" -gt 1048576
+
           mkdir -p ../firmware
           output_name="onecloud-openwrt-24.10-emmc_burn.img"
           if [[ "$image_path" == *.gz ]]; then
