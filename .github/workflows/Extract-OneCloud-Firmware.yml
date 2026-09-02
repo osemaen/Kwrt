@@ -66,8 +66,8 @@ jobs:
           validation_dir="${RUNNER_TEMP}/onecloud-image"
           rm -rf "$validation_dir"
           "$amlimg" unpack "$validation_image" "$validation_dir" || test -d "$validation_dir"
-          boot_sparse="$(find "$validation_dir" -type f -name '*boot.simg' -print -quit)"
-          rootfs_sparse="$(find "$validation_dir" -type f -name '*rootfs.simg' -print -quit)"
+          boot_sparse="$(find "$validation_dir" -type f \( -name '*boot.simg' -o -name '*boot.PARTITION.sparse' \) -print -quit)"
+          rootfs_sparse="$(find "$validation_dir" -type f \( -name '*rootfs.simg' -o -name '*rootfs.PARTITION.sparse' \) -print -quit)"
           test -s "$boot_sparse"
           test -s "$rootfs_sparse"
           test "$(stat -c '%s' "$boot_sparse")" -gt 1048576
