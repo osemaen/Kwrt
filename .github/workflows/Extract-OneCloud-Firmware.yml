@@ -25,13 +25,20 @@ jobs:
       - name: Compress OneCloud eMMC image
         run: |
           set -euo pipefail
-          image_path="$(find downloaded -type f -name '*emmc_burn.img' -print -quit)"
+          find downloaded -type f -printf '%s %p\n' | sort -nr | head -100 || true
+          image_path="$(find downloaded -type f -name '*emmc_burn.img*' -print -quit)"
           test -n "$image_path"
           mkdir -p firmware
           output_name="onecloud-openwrt-24.10-emmc_burn.img"
-          original_sha256="$(sha256sum "$image_path" | cut -d ' ' -f 1)"
+          if [[ "$image_path" == *.gz ]]; then
+            gzip -t "$image_path"
+            original_sha256="$(gzip -dc "$image_path" | sha256sum | cut -d ' ' -f 1)"
+            cp "$image_path" "firmware/${output_name}.gz"
+          else
+            original_sha256="$(sha256sum "$image_path" | cut -d ' ' -f 1)"
+            gzip -9 -c "$image_path" > "firmware/${output_name}.gz"
+          fi
           printf '%s  %s\n' "$original_sha256" "$output_name" > firmware/SHA256SUMS
-          gzip -9 -c "$image_path" > "firmware/${output_name}.gz"
           compressed_sha256="$(sha256sum "firmware/${output_name}.gz" | cut -d ' ' -f 1)"
           printf '%s  %s.gz\n' "$compressed_sha256" "$output_name" >> firmware/SHA256SUMS
           ls -lh firmware
