@@ -1,0 +1,45 @@
+name: Extract OneCloud Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build OpenWrt run ID
+        required: true
+        default: "33489295290"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download successful build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name 09.01_amlogic_meson8b --dir downloaded
+
+      - name: Compress OneCloud eMMC image
+        run: |
+          set -euo pipefail
+          image_path="$(find downloaded -type f -name '*emmc_burn.img' -print -quit)"
+          test -n "$image_path"
+          mkdir -p firmware
+          output_name="onecloud-openwrt-24.10-emmc_burn.img"
+          original_sha256="$(sha256sum "$image_path" | cut -d ' ' -f 1)"
+          printf '%s  %s\n' "$original_sha256" "$output_name" > firmware/SHA256SUMS
+          gzip -9 -c "$image_path" > "firmware/${output_name}.gz"
+          compressed_sha256="$(sha256sum "firmware/${output_name}.gz" | cut -d ' ' -f 1)"
+          printf '%s  %s.gz\n' "$compressed_sha256" "$output_name" >> firmware/SHA256SUMS
+          ls -lh firmware
+
+      - name: Upload compact firmware artifact
+        uses: actions/upload-artifact@main
+        with:
+          name: onecloud-openwrt-24.10-emmc-burn
+          path: firmware/
+          compression-level: 0
+          retention-days: 7
