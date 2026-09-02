@@ -52,15 +52,20 @@ jobs:
             echo "::warning::ImageBuilder returned a non-zero status; validating the generated image directly."
           fi
 
-          image_path="$(find bin/targets -type f -name '*emmc_burn.img*' -print -quit)"
+          image_path="$(find bin/targets -type f \( -name '*emmc_burn.img' -o -name '*emmc_burn.img.gz' \) -print -quit)"
           test -n "$image_path"
-          test "$(stat -c '%s' "$image_path")" -gt 10485760
+          validation_image="$image_path"
+          if [[ "$image_path" == *.gz ]]; then
+            validation_image="${RUNNER_TEMP}/onecloud-emmc-burn.img"
+            gzip -dc "$image_path" > "$validation_image"
+          fi
+          test "$(stat -c '%s' "$validation_image")" -gt 10485760
 
           amlimg="$(find target build_dir -type f -name AmlImg -perm -111 -print -quit)"
           test -n "$amlimg"
           validation_dir="${RUNNER_TEMP}/onecloud-image"
           rm -rf "$validation_dir"
-          "$amlimg" unpack "$image_path" "$validation_dir" || test -d "$validation_dir"
+          "$amlimg" unpack "$validation_image" "$validation_dir" || test -d "$validation_dir"
           boot_sparse="$(find "$validation_dir" -type f -name '*boot.simg' -print -quit)"
           rootfs_sparse="$(find "$validation_dir" -type f -name '*rootfs.simg' -print -quit)"
           test -s "$boot_sparse"
