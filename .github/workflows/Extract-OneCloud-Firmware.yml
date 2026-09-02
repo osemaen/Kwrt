@@ -40,26 +40,17 @@ jobs:
           find downloaded -type f -name '*.ipk' -exec cp -f {} imagebuilder/packages/ \;
           cp -f devices/amlogic_meson8b/gen_aml_emmc_img.sh imagebuilder/target/linux/amlogic/image/gen_aml_emmc_img.sh
           chmod +x imagebuilder/target/linux/amlogic/image/gen_aml_emmc_img.sh
+          mkdir -p imagebuilder/onecloud-files/etc/uci-defaults imagebuilder/onecloud-files/etc/sysctl.d
+          cp -f devices/amlogic_meson8b/diy/package/base-files/files/etc/uci-defaults/99-onecloud-bypass imagebuilder/onecloud-files/etc/uci-defaults/
+          cp -f devices/amlogic_meson8b/diy/package/base-files/files/etc/sysctl.d/99-onecloud-bypass.conf imagebuilder/onecloud-files/etc/sysctl.d/
           cd imagebuilder
           make info
           extra_packages="luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker kmod-usb-storage usbutils"
           removed_packages="-autocore-arm -odhcp6c -odhcpd-ipv6only"
           disabled_services="docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky"
-          if ! make image PROFILE=thunder-onecloud PACKAGES="$extra_packages $removed_packages" DISABLED_SERVICES="$disabled_services"; then
+          if ! make image PROFILE=thunder-onecloud PACKAGES="$extra_packages $removed_packages" FILES=onecloud-files DISABLED_SERVICES="$disabled_services"; then
             echo "::warning::ImageBuilder returned a non-zero status; validating the generated image directly."
           fi
-
-          root_dir="$(find build_dir -type d -name root-amlogic -print -quit)"
-          test -n "$root_dir"
-          for package in luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker; do
-            echo "Validating installed package: ${package}"
-            grep -q "^Package: ${package}$" "$root_dir/usr/lib/opkg/status"
-          done
-          test -s "$root_dir/usr/share/liquid-formula-dpi/service-common.sh"
-          for service in docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky; do
-            echo "Validating disabled service: ${service}"
-            test -z "$(find "$root_dir/etc/rc.d" -type l -name "S??${service}" -print -quit)"
-          done
 
           image_path="$(find bin/targets -type f -name '*emmc_burn.img*' -print -quit)"
           test -n "$image_path"
@@ -70,10 +61,31 @@ jobs:
           validation_dir="${RUNNER_TEMP}/onecloud-image"
           rm -rf "$validation_dir"
           "$amlimg" unpack "$image_path" "$validation_dir" || test -d "$validation_dir"
-          test -s "$validation_dir/boot.simg"
-          test -s "$validation_dir/rootfs.simg"
-          test "$(stat -c '%s' "$validation_dir/boot.simg")" -gt 1048576
-          test "$(stat -c '%s' "$validation_dir/rootfs.simg")" -gt 1048576
+          boot_sparse="$(find "$validation_dir" -type f -name '*boot.simg' -print -quit)"
+          rootfs_sparse="$(find "$validation_dir" -type f -name '*rootfs.simg' -print -quit)"
+          test -s "$boot_sparse"
+          test -s "$rootfs_sparse"
+          test "$(stat -c '%s' "$boot_sparse")" -gt 1048576
+          test "$(stat -c '%s' "$rootfs_sparse")" -gt 1048576
+
+          simg2img "$rootfs_sparse" "$validation_dir/rootfs.img"
+          mkdir -p "$validation_dir/rootfs"
+          sudo mount -o loop,ro "$validation_dir/rootfs.img" "$validation_dir/rootfs"
+          root_dir="$validation_dir/rootfs"
+          for package in luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker; do
+            echo "Validating installed package: ${package}"
+            grep -q "^Package: ${package}$" "$root_dir/usr/lib/opkg/status"
+          done
+          test -s "$root_dir/usr/share/liquid-formula-dpi/service-common.sh"
+          test -s "$root_dir/etc/uci-defaults/99-onecloud-bypass"
+          test -s "$root_dir/etc/sysctl.d/99-onecloud-bypass.conf"
+          grep -q "192.168.1.2" "$root_dir/etc/uci-defaults/99-onecloud-bypass"
+          grep -q "liquid-formula" "$root_dir/etc/uci-defaults/99-onecloud-bypass"
+          for service in docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky; do
+            echo "Validating disabled service: ${service}"
+            test -z "$(find "$root_dir/etc/rc.d" -type l -name "S??${service}" -print -quit)"
+          done
+          sudo umount "$root_dir"
 
           mkdir -p ../firmware
           output_name="onecloud-openwrt-24.10-emmc_burn.img"

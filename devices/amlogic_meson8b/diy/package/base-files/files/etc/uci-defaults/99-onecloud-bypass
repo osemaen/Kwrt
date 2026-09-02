@@ -29,7 +29,7 @@ uci -q commit firewall
 printf 'root\nroot\n' | passwd root >/dev/null 2>&1 || true
 
 # 代理、DDNS 与 Docker 在完成各自配置前不自启动。
-for service in dockerd openclash momo liquid_formula lucky; do
+for service in docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky; do
 	if [ -x "/etc/init.d/$service" ]; then
 		"/etc/init.d/$service" disable
 		"/etc/init.d/$service" stop >/dev/null 2>&1 || true
