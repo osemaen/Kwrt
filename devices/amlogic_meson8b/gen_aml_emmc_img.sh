@@ -39,7 +39,8 @@ PARTITION:rootfs:sparse:rootfs.simg
 EOF
 
 # 打包生成最终镜像
-./AmlImg pack "$OUTPUT_IMAGE" burn/
+# AmlImg v0.3.1 在部分成功打包场景仍返回非零，不能只依赖其退出码。
+./AmlImg pack "$OUTPUT_IMAGE" burn/ || test -s "$OUTPUT_IMAGE"
 test -s "$OUTPUT_IMAGE"
 
 # 清理临时文件夹

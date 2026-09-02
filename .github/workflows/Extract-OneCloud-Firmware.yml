@@ -50,10 +50,12 @@ jobs:
           root_dir="$(find build_dir -type d -name root-amlogic -print -quit)"
           test -n "$root_dir"
           for package in luci-app-openclash momo luci-app-momo sing-box liquid-formula luci-app-liquid-formula lucky luci-app-lucky luci-app-diskman docker dockerd luci-app-docker; do
+            echo "Validating installed package: ${package}"
             grep -q "^Package: ${package}$" "$root_dir/usr/lib/opkg/status"
           done
           test -s "$root_dir/usr/share/liquid-formula-dpi/service-common.sh"
           for service in docker dockerd openclash momo liquid-formula liquid-formula-boot-delay liquid-formula-logo fakehttp fakesip lucky; do
+            echo "Validating disabled service: ${service}"
             test -z "$(find "$root_dir/etc/rc.d" -type l -name "S??${service}" -print -quit)"
           done
 
